@@ -32,6 +32,13 @@ The `docs/` folder contains professional documentation extracted and enhanced fr
 - **[Deployment_Change_Management.md](docs/Deployment_Change_Management.md)** - Deployment strategy and change management plan.
 - **[Compliance_Requirements.md](docs/Compliance_Requirements.md)** - Regulatory compliance and data protection requirements.
 
+### Development Implementation
+- **[development/](development/)** - Implementation planning and technical specifications for actual system development.
+  - **[development_plan.md](development/development_plan.md)** - Comprehensive development roadmap and implementation strategy.
+  - **[database_migrations_plan.md](development/database_migrations_plan.md)** - Detailed database schema and migration strategy.
+  - **[api_contracts.md](development/api_contracts.md)** - Complete REST API specification and contracts.
+  - **[text_wireframes.md](development/text_wireframes.md)** - User interface design and wireframes.
+
 ### Legacy Documentation
 - **[Open_Data_Gaps_Next_Steps.md](docs/Open_Data_Gaps_Next_Steps.md)** - Remaining data requirements.
 

@@ -762,6 +762,7 @@ EduCore ERP provides:
 
 ### 5.3 Security Requirements
 
+#### 5.3.1 Standard Security Measures
 - **Authentication**: OAuth 2.0, JWT tokens, MFA support
 - **Authorization**: RBAC (Role-Based Access Control)
 - **Data Encryption**: AES-256 at rest, TLS 1.3 in transit
@@ -769,6 +770,51 @@ EduCore ERP provides:
 - **Compliance**: DPDP Act 2023, ISO 27001, GDPR-ready
 - **Backup**: Daily automated backups, disaster recovery plan
 - **Penetration Testing**: Quarterly security audits
+
+#### 5.3.2 Anti-Fraud & Anti-Cheating Mechanisms
+
+**A. Attendance Fraud Prevention**
+
+1. **Student Proxy Prevention ("Pass the Phone" Attack)**:
+   - **1-Device-Per-Account Rule**: Each student account bound to one device ID (Android ID / iOS IdentifierForVendor)
+   - **Device Change Workflow**: Requires SMS OTP verification + max 2 changes per semester
+   - **Random Selfie Challenge**: 10-20% of QR scans trigger mandatory live selfie with liveness detection
+   - **Session Timeout**: Auto-logout after 30 seconds during attendance window
+
+2. **Faculty Fake GPS Prevention**:
+   - **Mock Location Detection**: App blocks attendance if "Developer Options" or "Allow Mock Locations" enabled
+   - **Wi-Fi IP Whitelist**: Staff attendance only allowed on institute's specific Wi-Fi SSID/IP range
+   - **Geo-Fencing + Accelerometer**: GPS within 50m radius + physical movement verification
+
+**B. Financial Integrity & Immutability**
+
+1. **Immutable Ledger Architecture**:
+   - **NO DELETE Operations**: Hard-coded at database level; even Super Admin cannot delete transactions
+   - **Reverse-Only Policy**: Transactions can only be "Reversed" with mandatory reason field
+   - **Permanent Audit Trail**: Original records remain visible with "REVERSED" watermark
+   - **Sequential Receipt Numbering**: Auto-incrementing numbers with no gaps allowed
+
+2. **End-of-Day (EOD) Cash Settlement**:
+   - Daily report: Opening Balance, Cash Collected, Reversals, Closing Balance
+   - Digital signature required from Cashier + Admin approval
+   - Discrepancy alerts when physical cash ≠ system balance
+
+**C. Timetable Flexibility**
+
+1. **Multi-Batch Session Support**: Single lecture can assign multiple batches (e.g., "CS-A + CS-B" in seminar hall)
+2. **Proxy/Substitute Module**: One-click transfer of lectures from absent teacher to substitute with temporary permissions
+3. **Emergency Override**: "Mark Class Cancelled" with auto-notifications and rescheduling wizard
+
+**D. Grace Marks & Moderation Workflow**
+
+1. **Three-Phase Result Processing**:
+   - **Phase 1 (Raw Results)**: System calculates marks from answer keys + teacher grading
+   - **Phase 2 (Draft/Moderation)**: Principal/HOD can add grace marks (+1 to +5 configurable) with justification
+   - **Phase 3 (Published)**: Final results locked and visible to students/parents
+
+2. **Moderation Audit**: Complete trail showing original marks, grace marks added, approver, timestamp
+
+---
 
 ### 5.4 Performance Requirements
 

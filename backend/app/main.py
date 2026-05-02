@@ -7,7 +7,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from .core.config import settings
+from .core.exceptions import register_exception_handlers
+from .core.logging_config import logger
 from .api.v1.router import api_router
+from .api.v1.health import router as health_router
 
 
 def create_application() -> FastAPI:
@@ -35,13 +38,27 @@ def create_application() -> FastAPI:
     if not settings.DEBUG:
         Instrumentator().instrument(application).expose(application)
     
+    # Register exception handlers
+    register_exception_handlers(application)
+    
+    # Include health check router
+    application.include_router(health_router, prefix="/api/v1")
+    
     # Include API router
     application.include_router(api_router, prefix=settings.API_V1_PREFIX)
     
-    @application.get("/health")
-    def health_check():
-        """Health check endpoint."""
-        return {"status": "healthy", "version": settings.APP_VERSION}
+    @application.on_event("startup")
+    async def startup_event():
+        """Log startup message."""
+        logger.info("🚀 EduCore ERP Backend starting up...")
+        logger.info(f"📌 Version: {settings.APP_VERSION}")
+        logger.info(f"🔧 Debug Mode: {settings.DEBUG}")
+        logger.info(f"🌍 Environment: {settings.ENVIRONMENT}")
+    
+    @application.on_event("shutdown")
+    async def shutdown_event():
+        """Log shutdown message."""
+        logger.info("🛑 EduCore ERP Backend shutting down...")
     
     return application
 

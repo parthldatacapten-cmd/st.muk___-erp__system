@@ -1,0 +1,165 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: educore_postgres
+    environment:
+      POSTGRES_DB: educore
+      POSTGRES_USER: educore_admin
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-educore_secret_2024}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - educore_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U educore_admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: educore_redis
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis_secret_2024}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - educore_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Meilisearch
+  meilisearch:
+    image: getmeili/meilisearch:v1.6
+    container_name: educore_meilisearch
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-meili_secret_2024}
+      MEILI_ENV: development
+    volumes:
+      - meili_data:/meili_data
+    ports:
+      - "7700:7700"
+    networks:
+      - educore_network
+
+  # MinIO (S3-compatible storage)
+  minio:
+    image: minio/minio:latest
+    container_name: educore_minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin_secret}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"  # API
+      - "9001:9001"  # Console
+    networks:
+      - educore_network
+
+  # Backend API (FastAPI)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: educore_backend
+    environment:
+      DATABASE_URL: postgresql://educore_admin:${DB_PASSWORD:-educore_secret_2024}@postgres:5432/educore
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret_2024}@redis:6379/0
+      MEILISEARCH_URL: http://meilisearch:7700
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-meili_secret_2024}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin_secret}
+      JWT_SECRET: ${JWT_SECRET:-jwt_super_secret_key_2024}
+      ENVIRONMENT: development
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - educore_network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Frontend (Next.js)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: educore_frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_APP_NAME: EduCore ERP
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - educore_network
+    command: npm run dev
+
+  # Celery Worker (Background Tasks)
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: educore_celery
+    environment:
+      DATABASE_URL: postgresql://educore_admin:${DB_PASSWORD:-educore_secret_2024}@postgres:5432/educore
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret_2024}@redis:6379/0
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - educore_network
+    command: celery -A app.celery worker --loglevel=info
+
+  # Celery Beat (Scheduled Tasks)
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: educore_celery_beat
+    environment:
+      DATABASE_URL: postgresql://educore_admin:${DB_PASSWORD:-educore_secret_2024}@postgres:5432/educore
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_secret_2024}@redis:6379/0
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - educore_network
+    command: celery -A app.celery beat --loglevel=info
+
+networks:
+  educore_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  meili_data:
+  minio_data:
